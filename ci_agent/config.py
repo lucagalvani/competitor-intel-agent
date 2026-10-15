@@ -71,7 +71,7 @@ class Company:
 
 @dataclass
 class LLMConfig:
-    model: str = "claude-opus-5-5"
+    model: str = "claude-sonnet-5-5"
     effort: str = "medium"
     fallbacks: bool = True
 

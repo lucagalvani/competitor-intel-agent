@@ -89,7 +89,7 @@ def build_config(found: dict) -> dict:
     return {
         "company": found["company"],
         "competitors": competitors,
-        "llm": {"model": "claude-opus-5-5", "effort": "medium", "fallbacks": True},
+        "llm": {"model": "claude-sonnet-5-5", "effort": "medium", "fallbacks": True},
         "frameworks": ["battlecard", "positioning", "swot"],
         "data_dir": "data",
         "outputs": ["github_issue"],

@@ -102,7 +102,7 @@ Describing your own company under `company:` (and optionally a `positioning_file
 
 ## Cost
 
-Unchanged pages cost nothing: Claude is only called when something changed, plus one call per news/review search. The model and effort are set under `llm:` in the config.
+Unchanged pages cost nothing: Claude is only called when something changed, plus one call per news/review search. The default model is Claude Sonnet 5.5 (half the price of Opus 5.5); switch to `claude-opus-5-5` under `llm:` if you want deeper analysis.
 
 ## Project layout
 
