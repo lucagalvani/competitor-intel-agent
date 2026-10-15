@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────
+# competitor-intel-agent configuration
+# Copy to config.yaml and edit. This file is the ONLY thing you
+# need to change to point the agent at a different company.
+# Tip: `ci-agent init --company "Your Company"` generates it for you.
+# ─────────────────────────────────────────────────────────────
+
+# Who "we" are. Optional, but it makes the analysis say what each
+# change means for YOU, not just what changed.
+company:
+  name: "Acme"
+  website: "https://acme.example"
+  description: "Acme is a project management tool for small agencies."
+  # Optional: path to a markdown file with your positioning/messaging
+  # positioning_file: "our_positioning.md"
+
+competitors:
+  - name: "Competitor A"
+    website: "https://competitor-a.example"
+    sources:
+      - { type: homepage,  url: "https://competitor-a.example" }
+      - { type: pricing,   url: "https://competitor-a.example/pricing" }
+      - { type: changelog, url: "https://competitor-a.example/changelog" }
+      - { type: careers,   url: "https://competitor-a.example/careers" }
+      - { type: rss,       url: "https://competitor-a.example/blog/rss.xml" }
+      - { type: news }      # web search; query defaults to the competitor name
+      - { type: reviews }   # web search on review sites (G2, Capterra, Reddit…)
+
+  - name: "Competitor B"
+    sources:
+      - { type: homepage, url: "https://competitor-b.example" }
+      # JavaScript-heavy page? Add `render: true` (needs `pip install .[browser]`)
+      - { type: pricing, url: "https://competitor-b.example/pricing", render: true }
+      # Any other page: use type `page` and give it a unique name
+      - { type: page, name: integrations, url: "https://competitor-b.example/integrations" }
+      # Custom web search
+      - { type: search, name: spain-expansion, query: "Competitor B Spain launch" }
+
+# Claude settings
+llm:
+  model: claude-opus-5-5
+  effort: medium          # low | medium | high | xhigh | max
+  fallbacks: true         # retry on a fallback model if a request is declined
+
+# Analyses produced for each competitor (templates live in
+# ci_agent/frameworks/ — add your own .md file in frameworks_dir)
+frameworks: [battlecard, positioning, swot]
+# frameworks_dir: my_frameworks
+
+# Where snapshots, reports and digests are stored
+data_dir: data
+
+# Where the weekly digest is sent (a markdown copy is always saved)
+outputs: [github_issue]   # github_issue | slack | email
+
+# Instant alerts for important changes
+alerts:
+  min_significance: high  # low | medium | high
+  outputs: [github_issue]
+
+# Settings for the outputs (secrets come from environment variables)
+github:
+  repo: ""                # "owner/repo" — defaults to $GITHUB_REPOSITORY
+  labels: [competitive-intel]
+email:
+  to: []                  # SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD env vars
+
+notify_when_no_changes: false
+language: English         # language of the reports

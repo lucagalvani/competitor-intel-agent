@@ -1,0 +1,54 @@
+# Example: legal AI market in Europe, from the point of view of Lexroom.
+# Usage: ci-agent -c examples/legal-ai.yaml run
+
+company:
+  name: "Lexroom"
+  website: "https://www.lexroom.ai"
+  description: >
+    Lexroom is a legal AI platform for research, document analysis and drafting, built on
+    a proprietary database of millions of verified civil-law sources (legislation, case law,
+    doctrine). Core segment: solo and small law firms in Italy, Spain and Germany.
+
+competitors:
+  - name: "Harvey"
+    website: "https://www.harvey.ai"
+    sources:
+      - { type: homepage,  url: "https://www.harvey.ai" }
+      - { type: changelog, url: "https://help.harvey.ai/release-notes" }
+      - { type: news }
+      - { type: reviews }
+
+  - name: "Legora"
+    website: "https://legora.com"
+    sources:
+      - { type: homepage, url: "https://legora.com" }
+      # The newsroom states their user/firm counts — a growth signal worth tracking
+      - { type: page, name: newsroom, url: "https://legora.com/newsroom" }
+      - { type: news }
+      - { type: search, name: southern-europe, query: "Legora Spain OR Italy law firms 2026" }
+
+  - name: "vLex"
+    website: "https://vlex.com"
+    sources:
+      - { type: homepage, url: "https://vlex.com" }
+      - { type: news }
+
+  - name: "Maite.ai"
+    website: "https://www.maite.ai"
+    sources:
+      - { type: homepage, url: "https://www.maite.ai" }
+      - { type: news }
+
+llm:
+  model: claude-opus-5-5
+  effort: medium
+
+frameworks: [battlecard, positioning, swot]
+data_dir: data/legal-ai
+outputs: [github_issue]
+alerts:
+  min_significance: high
+  outputs: [github_issue]
+github:
+  labels: [competitive-intel, legal-ai]
+language: English

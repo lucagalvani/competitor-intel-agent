@@ -1,0 +1,37 @@
+# Example: a completely different market, to show the agent works for any company.
+# Usage: ci-agent -c examples/project-management.yaml run
+
+company:
+  name: "Notion"
+  website: "https://www.notion.com"
+  description: "Connected workspace for docs, wikis and projects, used by startups and teams."
+
+competitors:
+  - name: "Asana"
+    website: "https://asana.com"
+    sources:
+      - { type: homepage, url: "https://asana.com" }
+      - { type: pricing,  url: "https://asana.com/pricing" }
+      - { type: news }
+      - { type: reviews }
+
+  - name: "monday.com"
+    website: "https://monday.com"
+    sources:
+      - { type: homepage, url: "https://monday.com" }
+      - { type: pricing,  url: "https://monday.com/pricing" }
+      - { type: news }
+
+  - name: "ClickUp"
+    website: "https://clickup.com"
+    sources:
+      - { type: homepage, url: "https://clickup.com" }
+      - { type: pricing,  url: "https://clickup.com/pricing" }
+      - { type: news }
+
+frameworks: [battlecard, positioning]
+data_dir: data/project-management
+outputs: [slack]
+alerts:
+  min_significance: high
+  outputs: [slack]
