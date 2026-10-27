@@ -49,10 +49,6 @@ SEARCH_PROMPTS = {
         "Find recent news about the company {name}{site}: funding, acquisitions, product launches, "
         "partnerships, new markets, leadership changes, layoffs."
     ),
-    "reviews": (
-        "Find recent customer reviews and opinions about {name}{site} on review sites (G2, Capterra, "
-        "Trustpilot, Reddit, forums). Focus on recurring praise and complaints."
-    ),
     "search": "{query}",
 }
 
@@ -74,13 +70,95 @@ def collect_search(source: Source, competitor: Competitor, llm: LLM | None) -> s
     return "\n".join(line.strip() for line in answer.splitlines() if line.strip().startswith("- "))
 
 
+MAX_REVIEW_THEMES = 8
+
+_THEME = {
+    "type": "object",
+    "properties": {
+        "theme": {"type": "string", "description": "short neutral label, e.g. 'Slow customer support'"},
+        "mentions": {"type": "integer", "description": "how many of the collected reviews mention it"},
+        "sites": {"type": "array", "items": {"type": "string"}, "description": "domains it was seen on"},
+        "quote": {"type": "string", "description": "one short verbatim quote from a review"},
+        "url": {"type": "string", "description": "URL of the review the quote comes from"},
+    },
+    "required": ["theme", "mentions", "sites", "quote", "url"],
+    "additionalProperties": False,
+}
+REVIEW_THEMES_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "complaints": {"type": "array", "items": _THEME},
+        "praise": {"type": "array", "items": _THEME},
+    },
+    "required": ["complaints", "praise"],
+    "additionalProperties": False,
+}
+
+
+def collect_reviews(source: Source, competitor: Competitor, llm: LLM | None) -> str:
+    """Search each review site on its own, then group what customers say into complaint/praise themes.
+
+    Returns a markdown summary (most-mentioned themes first) that is diffed like a page, so the
+    weekly digest shows when a complaint appears, disappears or grows.
+    """
+    if llm is None:
+        raise RuntimeError("reviews need the Claude API (they can't run with --no-llm)")
+    site = f" ({competitor.website})" if competitor.website else ""
+
+    # Step 1: one search per site. `domains` makes the search tool return results from that site only.
+    found: dict[str, list[str]] = {}
+    for domain in source.sites:
+        prompt = (
+            f"Today is {date.today().isoformat()}.\n"
+            f"Find customer reviews and user posts about {competitor.name}{site} on {domain}. "
+            "Prefer the last 12 months, and read the review pages, not only the search snippets.\n\n"
+            "Return ONLY a markdown list, one review or post per line, newest first, at most 20 lines:\n"
+            "- YYYY-MM-DD | rating (e.g. 2/5) or n/a | what the reviewer liked or disliked, in one sentence "
+            "| short verbatim quote | URL\n"
+            "Only include reviews you actually found, about this specific company. "
+            "If you find none, return an empty answer."
+        )
+        answer = llm.research("You are a meticulous market research assistant.", prompt, domains=[domain])
+        found[domain] = [line.strip() for line in answer.splitlines() if line.strip().startswith("- ")]
+
+    checked = "\n".join(f"- {domain}: {len(lines)} reviews/posts read" for domain, lines in found.items())
+    if not any(found.values()):
+        return f"No reviews found.\n\n## Sites checked\n{checked}"
+
+    # Step 2: group the individual reviews into recurring themes (no web search needed)
+    notes = "\n\n".join(f"### {domain}\n" + "\n".join(lines) for domain, lines in found.items() if lines)
+    themes = llm.json(
+        "You are a customer research analyst. Use only what the reviews below say.",
+        f"These are customer reviews of {competitor.name}, grouped by site:\n\n{notes}\n\n"
+        f"Group them into at most {MAX_REVIEW_THEMES} recurring complaint themes and at most "
+        f"{MAX_REVIEW_THEMES} praise themes. Name each theme by the underlying issue (e.g. 'Steep pricing at scale'), "
+        "not by a single anecdote. Count a review once per theme it mentions. "
+        "A theme with a single mention is only worth listing if it is serious (data loss, security, billing).",
+        REVIEW_THEMES_SCHEMA,
+    )
+    return (
+        f"## Complaints\n{_theme_lines(themes['complaints'])}\n\n"
+        f"## Praise\n{_theme_lines(themes['praise'])}\n\n"
+        f"## Sites checked\n{checked}"
+    )
+
+
+def _theme_lines(themes: list[dict]) -> str:
+    # Most mentioned first, then alphabetical, so the order is stable from run to run
+    themes = sorted(themes, key=lambda t: (-t["mentions"], t["theme"].lower()))[:MAX_REVIEW_THEMES]
+    return "\n".join(
+        f"- {t['theme']} | {t['mentions']} mentions | {', '.join(t['sites'])} | \"{t['quote']}\" | {t['url']}"
+        for t in themes
+    ) or "- none found"
+
+
 Collector = Callable[[Source, Competitor, "LLM | None"], str]
 
 COLLECTORS: dict[str, Collector] = {
     **{t: collect_page for t in PAGE_TYPES},
     "rss": collect_rss,
     "news": collect_search,
-    "reviews": collect_search,
+    "reviews": collect_reviews,
     "search": collect_search,
 }
 

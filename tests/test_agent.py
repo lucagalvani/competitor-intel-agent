@@ -4,7 +4,7 @@ import pytest
 import yaml
 
 from ci_agent import collectors
-from ci_agent.config import ConfigError, Source, parse_config
+from ci_agent.config import Competitor, ConfigError, Source, parse_config
 from ci_agent.pipeline import run
 from ci_agent.store import Store, list_diff, normalize, page_diff
 
@@ -47,7 +47,8 @@ class FakeLLM:
             ]
         }
 
-    def research(self, system, prompt):
+    def research(self, system, prompt, domains=None):
+        self.calls.append(("research", domains))
         return "- 2026-10-01 | Rival raises $10M | https://news.example/1"
 
 
@@ -71,6 +72,21 @@ def test_config_rejects_bad_values():
         parse_config(
             {"competitors": [{"name": "X", "sources": [{"type": "news"}, {"type": "news"}]}]}
         )
+
+
+def test_reviews_sites_default_and_custom():
+    cfg = parse_config(
+        {"competitors": [{"name": "X", "sources": [
+            {"type": "reviews"},
+            {"type": "reviews", "name": "eu-reviews", "sites": ["trustpilot.com"]},
+        ]}]}
+    )
+    default, custom = cfg.competitors[0].sources
+    assert default.sites == ["g2.com", "capterra.com", "trustpilot.com", "reddit.com"]
+    assert custom.sites == ["trustpilot.com"]
+    assert not default.is_list and default.needs_llm
+    with pytest.raises(ConfigError, match="only used by type 'reviews'"):
+        parse_config({"competitors": [{"name": "X", "sources": [{"type": "news", "sites": ["g2.com"]}]}]})
 
 
 def test_example_configs_are_valid():
@@ -107,6 +123,47 @@ def test_list_sources_remember_old_items(tmp_path):
     # A dropped out of the search results but must not come back as "new" later
     d = store.update_snapshot("rival", src, "- d | A | https://x/a")
     assert not d.changed
+
+
+# ── reviews ────────────────────────────────────────────────────
+
+
+class ReviewsLLM:
+    """Returns one review per site, then two complaint themes (in the wrong order on purpose)."""
+
+    def __init__(self):
+        self.domains = []
+
+    def research(self, system, prompt, domains=None):
+        self.domains.append(domains)
+        if domains == ["reddit.com"]:
+            return "Nothing found."
+        return f"Here you go:\n- 2026-10-01 | 2/5 | Support is slow | \"no reply\" | https://{domains[0]}/r/1"
+
+    def json(self, system, prompt, schema):
+        assert "g2.com" in prompt and "reddit.com" not in prompt  # only sites with reviews are sent
+        theme = lambda name, n: {"theme": name, "mentions": n, "sites": ["g2.com"], "quote": "q", "url": "https://g2.com/r/1"}
+        return {"complaints": [theme("Pricey", 1), theme("Slow support", 3)], "praise": []}
+
+
+def test_reviews_search_each_site_and_group_themes():
+    src = Source(type="reviews", sites=["g2.com", "capterra.com", "reddit.com"])
+    llm = ReviewsLLM()
+    text = collectors.collect_reviews(src, Competitor(name="Rival", sources=[]), llm)
+    assert llm.domains == [["g2.com"], ["capterra.com"], ["reddit.com"]]
+    complaints = text.split("## Praise")[0]
+    assert complaints.index("Slow support | 3 mentions") < complaints.index("Pricey | 1 mentions")
+    assert "## Praise\n- none found" in text
+    assert "- reddit.com: 0 reviews/posts read" in text and "- g2.com: 1 reviews/posts read" in text
+
+
+def test_reviews_with_nothing_found_skip_grouping():
+    class EmptyLLM:
+        def research(self, system, prompt, domains=None):
+            return ""
+
+    text = collectors.collect_reviews(Source(type="reviews", sites=["g2.com"]), Competitor(name="Rival", sources=[]), EmptyLLM())
+    assert text.startswith("No reviews found.")
 
 
 # ── full pipeline ──────────────────────────────────────────────
@@ -153,8 +210,11 @@ def test_one_broken_source_does_not_stop_the_run(tmp_path, monkeypatch):
 
 def test_no_llm_mode_skips_search_sources(tmp_path, monkeypatch):
     monkeypatch.setitem(collectors.COLLECTORS, "pricing", lambda s, c, llm: "Pro $10")
-    cfg = parse_config(BASE, base_dir=tmp_path)
+    data = yaml.safe_load(yaml.safe_dump(BASE))
+    data["competitors"][0]["sources"].append({"type": "reviews"})
+    cfg = parse_config(data, base_dir=tmp_path)
     result = run(cfg, None, notify=False, log=lambda *a: None)
-    assert result.digest_path is None
+    assert result.digest_path is None and result.errors == []
     assert Store(tmp_path / "data").read_snapshot("rival-inc", "news") is None
+    assert Store(tmp_path / "data").read_snapshot("rival-inc", "reviews") is None
     assert Store(tmp_path / "data").read_snapshot("rival-inc", "pricing") == "Pro $10\n"

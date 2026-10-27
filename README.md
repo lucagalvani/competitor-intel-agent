@@ -77,8 +77,22 @@ Use `-c path/to/config.yaml` to pick another config, e.g. `ci-agent -c examples/
 | `page` | `url`, `name` | Same, for any other page | Line diff |
 | `rss` | `url` | RSS/Atom feed items | New items only |
 | `news` | – | Claude web search for funding, launches, M&A, partnerships | New items only |
-| `reviews` | – | Claude web search on G2, Capterra, Reddit… | New items only |
+| `reviews` | – (optional `sites`) | One Claude web search per site (default: G2, Capterra, Trustpilot, Reddit), then grouped into complaint and praise themes | Line diff of the themes: new, gone or growing complaints |
 | `search` | `query`, `name` | Claude web search with your own query | New items only |
+
+A `reviews` snapshot looks like this, most-mentioned first:
+
+```
+## Complaints
+- Slow customer support | 7 mentions | g2.com, trustpilot.com | "waited 5 days for a reply" | https://…
+- Steep pricing at scale | 4 mentions | capterra.com, reddit.com | "costs tripled past 20 seats" | https://…
+## Praise
+- Easy to set up | 9 mentions | g2.com, capterra.com | "up and running in an afternoon" | https://…
+## Sites checked
+- g2.com: 18 reviews/posts read
+```
+
+To pick the sites, list their domains: `{ type: reviews, sites: [g2.com, capterra.com, getapp.com] }`.
 
 Add `render: true` to a page source for JavaScript-heavy sites (`pip install -e '.[browser]' && playwright install chromium`).
 The agent respects `robots.txt` and waits between requests to the same site.
@@ -87,7 +101,7 @@ The agent respects `robots.txt` and waits between requests to the same site.
 
 The analyses are plain markdown templates in `ci_agent/frameworks/`:
 
-- `battlecard.md`: TL;DR, positioning, pricing, strengths, weaknesses, landmines, objection handling
+- `battlecard.md`: TL;DR, positioning, pricing, what their customers complain about, strengths, weaknesses, landmines, objection handling
 - `positioning.md`: the four positioning questions (what is it, who is it for, what does it replace, why is it better), segment maturity, messaging hierarchy
 - `swot.md`: SWOT plus "so what for us"
 
@@ -102,7 +116,7 @@ Describing your own company under `company:` (and optionally a `positioning_file
 
 ## Cost
 
-Unchanged pages cost nothing: Claude is only called when something changed, plus one call per news/review search. The default model is Claude Sonnet 5.5 (half the price of Opus 5.5); switch to `claude-opus-5-5` under `llm:` if you want deeper analysis.
+Unchanged pages cost nothing: Claude is only called when something changed, plus one call per news search and, for `reviews`, one call per review site plus one to group the themes. The default model is Claude Sonnet 5.5 (half the price of Opus 5.5); switch to `claude-opus-5-5` under `llm:` if you want deeper analysis.
 
 ## Project layout
 

@@ -17,11 +17,16 @@ Plans, prices, free trial/freemium, minimums, what's gated. Write "Unknown" if t
 ## Strengths (where they win)
 Bullets. Be honest: a battle card that underrates the competitor loses deals.
 
+## What their customers say
+From the `reviews` source: a table of their top complaint themes | Complaint | Mentions | Where | Quote |,
+then one line with their most praised themes. Write "No review data yet" if there is no reviews source.
+
 ## Weaknesses (where we win)
-Bullets, each tied to evidence (their own pages, reviews, missing features).
+Bullets, each tied to evidence (their own pages, review complaint themes, missing features).
 
 ## Landmines to set
-Discovery questions that expose their weaknesses, phrased the way a rep would ask them.
+Discovery questions that expose their weaknesses, phrased the way a rep would ask them. Base at least
+one on their most frequent review complaint.
 
 ## Objection handling
 A table: | They say / the prospect says | We respond |

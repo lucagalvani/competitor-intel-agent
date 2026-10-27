@@ -66,6 +66,9 @@ class Analyzer:
 
 Below are the changes detected this week on {competitor.name}'s public sources.
 In page diffs, lines starting with '-' were removed and '+' were added. In feed/search diffs, every line is a new item.
+The `reviews` source is a summary of customer review themes, rebuilt each run: report a change (category
+'customers') only when a complaint or praise theme is new, has disappeared, or its mentions clearly grew.
+Ignore reworded theme names, swapped quotes and small count changes.
 
 {blocks}
 

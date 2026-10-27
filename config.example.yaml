@@ -24,7 +24,8 @@ competitors:
       - { type: careers,   url: "https://competitor-a.example/careers" }
       - { type: rss,       url: "https://competitor-a.example/blog/rss.xml" }
       - { type: news }      # web search; query defaults to the competitor name
-      - { type: reviews }   # web search on review sites (G2, Capterra, Reddit…)
+      - { type: reviews }   # complaint/praise themes from G2, Capterra, Trustpilot, Reddit
+      # Other review sites? List them: { type: reviews, sites: [g2.com, getapp.com] }
 
   - name: "Competitor B"
     sources:

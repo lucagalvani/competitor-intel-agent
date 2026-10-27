@@ -20,6 +20,8 @@ SOURCE_TYPES = PAGE_TYPES | SEARCH_TYPES | FEED_TYPES
 OUTPUT_TYPES = {"github_issue", "slack", "email"}
 SIGNIFICANCE = ["low", "medium", "high"]
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+# Review sites searched one by one by a `reviews` source, unless it lists its own `sites`
+DEFAULT_REVIEW_SITES = ["g2.com", "capterra.com", "trustpilot.com", "reddit.com"]
 
 
 class ConfigError(ValueError):
@@ -38,6 +40,7 @@ class Source:
     query: str | None = None
     name: str | None = None
     render: bool = False
+    sites: list[str] = field(default_factory=list)  # only for `reviews`
 
     @property
     def id(self) -> str:
@@ -46,8 +49,13 @@ class Source:
 
     @property
     def is_list(self) -> bool:
-        """List-like sources (feeds, searches) are diffed by new items, not by line changes."""
-        return self.type in SEARCH_TYPES | FEED_TYPES
+        """List-like sources (feeds, searches) are diffed by new items, not by line changes.
+        `reviews` is not one: it is a summary of complaint/praise themes, diffed like a page."""
+        return self.type in (SEARCH_TYPES - {"reviews"}) | FEED_TYPES
+
+    @property
+    def needs_llm(self) -> bool:
+        return self.type in SEARCH_TYPES
 
 
 @dataclass
@@ -131,6 +139,15 @@ def _parse_source(raw: dict, competitor: str) -> Source:
         name=raw.get("name"),
         render=bool(raw.get("render", False)),
     )
+    if "sites" in raw:
+        sites = raw["sites"]
+        if src.type != "reviews":
+            raise ConfigError(f"{where}: 'sites' is only used by type 'reviews'")
+        if not isinstance(sites, list) or not sites or not all(isinstance(x, str) and x for x in sites):
+            raise ConfigError(f"{where}: 'sites' must be a list of domains, e.g. [g2.com, capterra.com]")
+        src.sites = sites
+    elif src.type == "reviews":
+        src.sites = list(DEFAULT_REVIEW_SITES)
     if (src.type in PAGE_TYPES or src.type in FEED_TYPES) and not src.url:
         raise ConfigError(f"{where}: type '{src.type}' needs a 'url'")
     if src.type in {"page", "search"} and not src.name:

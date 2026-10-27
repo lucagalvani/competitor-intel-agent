@@ -48,11 +48,12 @@ class LLM:
         except json.JSONDecodeError as e:
             raise LLMError(f"Claude returned invalid JSON: {e}") from e
 
-    def research(self, system: str, prompt: str) -> str:
-        """Let Claude search the web, then return its final written answer."""
+    def research(self, system: str, prompt: str, domains: list[str] | None = None) -> str:
+        """Let Claude search the web (optionally only on `domains`), then return its final written answer."""
+        tool = {**WEB_SEARCH_TOOL, "allowed_domains": domains} if domains else WEB_SEARCH_TOOL
         messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
         for _ in range(5):
-            msg = self._call(system, messages, tools=[WEB_SEARCH_TOOL])
+            msg = self._call(system, messages, tools=[tool])
             # Long searches can pause mid-turn; send the partial turn back to let it continue
             if msg.stop_reason != "pause_turn":
                 return _join_text(msg)

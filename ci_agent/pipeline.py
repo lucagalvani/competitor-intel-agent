@@ -45,7 +45,7 @@ def run(
         log(f"\n▶ {competitor.name}")
         diffs = []
         for source in competitor.sources:
-            if llm is None and source.is_list and source.type != "rss":
+            if llm is None and source.needs_llm:
                 log(f"  · {source.id}: skipped (needs Claude)")
                 continue
             try:
